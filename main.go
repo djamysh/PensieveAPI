@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,18 +17,54 @@ import (
 
 var client *mongo.Client
 var DBName = "TracerApp"
+var validDataTypes = [5]string{"string", "percentage", "integer", "float", "timelings"}
+
+var defaultTimelingsName = "Default Timelings"
+var defaultTimelingsPropertyID primitive.ObjectID
+
+// expected formats
+// string -> string
+// percentage -> x element of [0,100]
+// integer -> x element of Z
+// float -> x element of R
+// timelings -> map of timestamps with tags
+
+// each activity must have the property timelings. As a default if the activity has
+// a start and end time specific then it must have two key-pair in the timelings map,
+// which are {'start':timestamp of start, 'end': timestamp of end}, if the activity data
+// does not rely on start and end, then it must have 'instant' timestamp, which corresponds
+// to the moment which data submitted. For example recording the cigarette consumption
+// can be instantenous timeling while recording the thermodynamics study duration being
+// an interval of start and end. This is for the default timelings property. Each activity
+// will have either 'IntervalTimelings' property or 'InstantTimeling' property.
+// After a brainstorm I think defining as Instant or Interval is restricting the flexability.
+// *I think every Activity must have Default timeling property but not restricted as
+// instant or interval.
+// ** After a bit of coding I decided that Interval Timelings is a bit of optional, user additionally
+// can also define it, I will automatically define the default timeling while creating the event in the collection.
+
+// each activity must have the default Note property. I am not sure, it may be redundant.
+
+// Get (Property&Activity) by name functions must be implemented
+
+// I am thinking of removing percentage datatype, because if you consider
+// all of the other datatypes they are well defined datatypes(timelings as map[string]int64)
+// however percentage requires additional constraint of x element of [0,100]. It is is similar
+// to that start-end timelings is some constraint of timelings. I will remove the percentage
+// datatype, in future I am planning to add some built-in constraints for percentage, start-end
+// intervals or similar usefull built-in features.
 
 type Activity struct {
 	ID primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	//ActivityID        int                  `bson:"activityID" json:"activityID"`
-	Name              string               `bson:"name" json:"name"`
+	Name              string               `bson:"name" json:"name" validate:"unique"`
 	Description       string               `bson:"description" json:"description"`
 	DefinedProperties []primitive.ObjectID `bson:"definedProperties" json:"definedProperties"`
 }
 
 type Property struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	Name          string             `bson:"name" json:"name"`
+	Name          string             `bson:"name" json:"name" validate:"unique"`
 	Description   string             `bson:"description" json:"description"`
 	ValueDataType string             `bson:"valueDataType" json:"valueDataType"`
 }
@@ -36,7 +73,7 @@ type Event struct {
 	ID             primitive.ObjectID                 `bson:"_id,omitempty" json:"id"`
 	ActivityID     primitive.ObjectID                 `bson:"activityID" json:"activityID"`
 	PropertyValues map[primitive.ObjectID]interface{} `bson:"propertyValues" json:"propertyValues"`
-	Timestamp      int64                              `bson:"timestamp" json:"timestamp"`
+	//Timestamp      int64                              `bson:"timestamp" json:"timestamp"`
 }
 
 func main() {
@@ -48,6 +85,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Check if default timelings properties are created
+	defaultTimelingsPropertyID = DefaultTimelingsProperty()
 
 	// Define the router
 	r := mux.NewRouter()
@@ -71,6 +110,35 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8000", r))
 }
 
+func DefaultTimelingsProperty() primitive.ObjectID {
+	// Check wheter the default timelings Property is created or not, if not  creates.
+	var defaultTimelingsProperty *Property
+
+	if err := client.Database(DBName).Collection("properties").FindOne(context.TODO(), bson.M{"name": defaultTimelingsName}).Decode(&defaultTimelingsProperty); err != nil {
+		// definition of default timelings property
+		defaultTimelingsProperty = &Property{ID: primitive.NewObjectID(), Name: "Default Timelings", Description: "Default timelings property", ValueDataType: "timelings"}
+		// inserting to the properties collection
+		client.Database(DBName).Collection("properties").InsertOne(context.TODO(), defaultTimelingsProperty)
+		return defaultTimelingsProperty.ID
+	}
+
+	return defaultTimelingsProperty.ID
+}
+
+func (P *Property) isValidType() bool {
+	// Check wheter the given data type is valid
+	for _, t := range validDataTypes {
+		if P.ValueDataType == t {
+			return true
+		}
+	}
+	return false
+}
+
+func cleanInput(in string) string {
+	return strings.ToLower(strings.TrimSpace(in))
+}
+
 func CreateActivityHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse the request body to get the activity
 	var activity Activity
@@ -83,6 +151,10 @@ func CreateActivityHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Insert the activity into the MongoDB collection
 	activity.ID = primitive.NewObjectID()
+
+	// Appending the default Timelings property
+	activity.DefinedProperties = append(activity.DefinedProperties, defaultTimelingsPropertyID)
+
 	_, err = client.Database(DBName).Collection("activities").InsertOne(context.TODO(), activity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -184,6 +256,16 @@ func CreatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Insert the property into the MongoDB collection
 	property.ID = primitive.NewObjectID()
+
+	property.ValueDataType = cleanInput(property.ValueDataType)
+	if !property.isValidType() {
+
+		// When the given input is invalid
+		http.Error(w, "Invalid data type.", http.StatusBadRequest)
+		return
+
+	}
+
 	_, err = client.Database(DBName).Collection("properties").InsertOne(context.TODO(), property)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -211,6 +293,15 @@ func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Update the property in the MongoDB collection
 	property.ID = id
+
+	property.ValueDataType = cleanInput(property.ValueDataType)
+	if property.isValidType() {
+
+		// When the given input is invalid
+		http.Error(w, err.Error(), http.StatusNotAcceptable)
+		return
+
+	}
 	_, err = client.Database(DBName).Collection("properties").ReplaceOne(context.TODO(), bson.M{"_id": id}, property)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -286,7 +377,8 @@ func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Insert the event into the MongoDB collection
 	event.ID = primitive.NewObjectID()
-	event.Timestamp = int64(time.Now().Unix())
+	event.PropertyValues[defaultTimelingsPropertyID] = int64(time.Now().Unix())
+	//event.Timestamp = int64(time.Now().Unix())
 	_, err = client.Database(DBName).Collection("events").InsertOne(context.TODO(), event)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
