@@ -1,0 +1,8 @@
+// ! Debug the DeletePropertyHandler and DeleteProperty ,endpoint returns no content. 
+	//event.Timestamp = int64(time.Now().Unix())
+SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
+
+
+// Use Error.New(string) instead of custom error structure, it is cumbersome
+
+//!!! Always the Invalid data type error in create events request
