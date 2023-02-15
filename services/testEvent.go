@@ -23,7 +23,7 @@ type CreateEventRequest struct {
 // TODO: Find a better name for this function, it does not give accurate info
 // because ControlEvent function also processes the given data into to a
 // useable format, converts the PropertyValues into the []PropertyValue slice.
-func ControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
+func MockControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
 	// default types : integer, float, string, timelings or array of those
 
 	// Convert the activityID string to an ObjectID
@@ -115,7 +115,7 @@ func MockCreateEventHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	event, err := ControlEvent(&request)
+	event, err := MockControlEvent(&request)
 	if err != nil {
 
 		// TODO: make better way of error handling
@@ -178,7 +178,7 @@ func MockUpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var event *models.TestEvent
-	event, err = ControlEvent(&updateEvent)
+	event, err = MockControlEvent(&updateEvent)
 
 	// currently it is going to set the given values without check.
 	update := bson.M{"$set": bson.M{"activityID": event.ActivityID, "propertyValues": event.PropertyValues}}
