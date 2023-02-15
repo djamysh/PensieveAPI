@@ -16,7 +16,6 @@ type Event struct {
 	ID             primitive.ObjectID                 `bson:"_id,omitempty" json:"id"`
 	ActivityID     primitive.ObjectID                 `bson:"activityID" json:"activityID"`
 	PropertyValues map[primitive.ObjectID]interface{} `bson:"propertyValues" json:"propertyValues"`
-	//Timestamp      int64                              `bson:"timestamp" json:"timestamp"`
 }
 
 var TypeMap = map[string]reflect.Type{
@@ -129,17 +128,6 @@ func GetEvent(id primitive.ObjectID) (*Event, error) {
 	var event Event
 
 	err := EventsCollection.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&event)
-	return &event, err
-}
-
-func MockGetEvent(id primitive.ObjectID) (*interface{}, error) {
-	// Get the event from the MongoDB collection
-	//var event Event
-	var event interface{}
-
-	val := EventsCollection.FindOne(context.TODO(), bson.M{"_id": id})
-	err := val.Decode(&event)
-	//err := EventsCollection.FindOne(context.TODO(), bson.M{"_id": id}).Decode(&event)
 	return &event, err
 }
 

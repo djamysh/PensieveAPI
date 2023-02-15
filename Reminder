@@ -6,3 +6,6 @@ SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
 // Use Error.New(string) instead of custom error structure, it is cumbersome
 
 //!!! Always the Invalid data type error in create events request
+
+// Mock functions seems fine, plug them into real functions however
+// for PropertyValues structure change key field to PropertyID

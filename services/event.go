@@ -50,10 +50,9 @@ func GetEventHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
-	// How to check whether YCM working
-	//var event *models.Event
-	var event interface{} // for testing purposes
-	event, err = models.MockGetEvent(id)
+
+	var event *models.Event
+	event, err = models.GetEvent(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
