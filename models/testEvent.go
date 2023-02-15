@@ -14,20 +14,12 @@ type TestEvent struct {
 	PropertyValues []PropertyValue    `bson:"propertyValues" json:"propertyValues"`
 }
 
-func MockCreateEvent(activityID primitive.ObjectID, propertyValues map[primitive.ObjectID]interface{}) (*TestEvent, error) {
-	// Create a new event
-	propertyValuesSlice := make([]PropertyValue, 0, len(propertyValues))
-	for key, value := range propertyValues {
-		propertyValuesSlice = append(propertyValuesSlice, PropertyValue{
-			Key:   key,
-			Value: value,
-		})
-	}
+func MockCreateEvent(activityID primitive.ObjectID, propertyValues []PropertyValue) (*TestEvent, error) {
 
 	event := &TestEvent{
 		ID:             primitive.NewObjectID(),
 		ActivityID:     activityID,
-		PropertyValues: propertyValuesSlice,
+		PropertyValues: propertyValues,
 	}
 
 	// Insert the event into the MongoDB collection
