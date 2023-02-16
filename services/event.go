@@ -56,6 +56,7 @@ func ControlEvent(event *CreateEventRequest, previousEvent *models.Event) (*mode
 	activityID, err := primitive.ObjectIDFromHex(event.ActivityID)
 	if err != nil {
 		// Handle error
+		return nil, err
 	}
 
 	// Get the corresponding activity entry
@@ -183,6 +184,7 @@ func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Handle error
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	event, err := ControlEvent(&request, nil)
@@ -190,7 +192,7 @@ func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
 
 		// TODO: make better way of error handling
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		//Handle error
+		return
 	}
 
 	// Call the CreateEvent function
@@ -198,6 +200,7 @@ func CreateEventHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Handle error
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	json.NewEncoder(w).Encode(event)
 }
@@ -208,6 +211,7 @@ func GetEventHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := primitive.ObjectIDFromHex(vars["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	var event *models.Event
@@ -255,12 +259,14 @@ func UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 		// If there is a problem with obtaining the previous
 		// Event value from the given EventID
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	event, err = ControlEvent(&updateEvent, previousEvent)
 	if err != nil {
 		// If there is a problem with controlling the event
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	//TODO: Consider AppendUpdate for array data types,

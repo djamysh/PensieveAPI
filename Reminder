@@ -9,3 +9,7 @@ SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
 
 // Mock functions seems fine, plug them into real functions however
 // for PropertyValues structure change key field to PropertyID
+
+// TODO: What happens if I update a property's ValueDataType or an activity's DefinedProperties ?
+// Consider this, this is a real issue.
+ 

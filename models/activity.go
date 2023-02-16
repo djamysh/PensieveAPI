@@ -21,7 +21,7 @@ func (activity *Activity) CreateActivity() error {
 	activity.ID = primitive.NewObjectID()
 
 	// Appending the default Timelings property
-	activity.DefinedProperties = append(activity.DefinedProperties, DefaultTimelingsPropertyID)
+	// activity.DefinedProperties = append(activity.DefinedProperties, DefaultTimelingsPropertyID)
 
 	_, err := ActivitiesCollection.InsertOne(context.TODO(), activity)
 	return err

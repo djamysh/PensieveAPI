@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/djamysh/TracerApp/app"
-	"github.com/djamysh/TracerApp/models"
 	"github.com/gorilla/mux"
 )
 
@@ -43,15 +42,17 @@ import (
 
 func main() {
 
-	var err error
-	// Check if default timelings properties are created
-	models.DefaultTimelingsPropertyID, err = models.DefaultTimelingsProperty()
+	/*
+		var err error
+		// Check if default timelings properties are created
+		// models.DefaultTimelingsPropertyID, err = models.DefaultTimelingsProperty()
 
-	if err != nil {
-		log.Fatal("ERROR while trying to obtain Default Timelings Property ID ")
-		log.Fatal(err)
+		if err != nil {
+			log.Fatal("ERROR while trying to obtain Default Timelings Property ID ")
+			log.Fatal(err)
 
-	}
+		}
+	*/
 
 	// Define the router
 	r := mux.NewRouter()

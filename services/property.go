@@ -48,7 +48,7 @@ func CreatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	// ?? Is it possible to change ID with the request
 	// ?> No, because there is a redefinition of property.ID in the
-	// following lines. Event if there is a ID value in the request
+	// following lines. Even if there is a ID value in the request
 	// it will be overwritten with the given parameter ID.
 
 	// Get the property ID from the URL
@@ -56,6 +56,8 @@ func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := primitive.ObjectIDFromHex(vars["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+
 	}
 
 	// Parse the request body to get the updated property
@@ -95,6 +97,7 @@ func DeletePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := primitive.ObjectIDFromHex(vars["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	err = models.DeleteProperty(id)
@@ -113,6 +116,7 @@ func GetPropertyHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := primitive.ObjectIDFromHex(vars["id"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 	property, err := models.GetProperty(id)
 

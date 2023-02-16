@@ -9,8 +9,8 @@ import (
 
 var ValidDataTypes = [7]string{"string", "integer", "float", "timelings", "string array", "integer array", "float array"}
 
-var DefaultTimelingsName = "Default Timelings"
-var DefaultTimelingsPropertyID primitive.ObjectID
+// var DefaultTimelingsName = "Default Timelings"
+// var DefaultTimelingsPropertyID primitive.ObjectID
 
 type Property struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -19,6 +19,7 @@ type Property struct {
 	ValueDataType string             `bson:"valueDataType" json:"valueDataType"`
 }
 
+/*
 // Create a null Property so that at the delete moment deleted property reference will be set to null property
 func DefaultTimelingsProperty() (primitive.ObjectID, error) {
 	// Check wheter the default timelings Property is created or not, if not  creates.
@@ -40,6 +41,7 @@ func DefaultTimelingsProperty() (primitive.ObjectID, error) {
 
 	return defaultTimelingsProperty.ID, nil
 }
+*/
 
 func (P *Property) IsValidType() bool {
 	// Check wheter the given data type is valid
