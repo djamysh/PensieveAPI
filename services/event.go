@@ -24,23 +24,16 @@ var TypeErr = &utils.EventError{Message: "Invalid data type"}
 var TimestampErr = &utils.EventError{Message: "Invalid UNIX timestamp"}
 
 var TypeNullMap = map[string]interface{}{
-	"string":        "",
-	"integer":       int64(0),
-	"float":         float64(0),
-	"timelings":     map[string]int64{},
-	"integer array": []int64{},
-	"string array":  []string{},
-	"float array":   []float64{},
+	"string":       "",
+	"number":       float64(0),
+	"timelings":    map[string]int64{},
+	"string array": []string{},
+	"number array": []float64{},
 }
 
-var TypeMap = map[string]reflect.Type{
-	"string":        reflect.TypeOf(""),
-	"integer":       reflect.TypeOf(int64(0)),
-	"float":         reflect.TypeOf(float64(0)),
-	"timelings":     reflect.TypeOf(map[string]int64{}),
-	"integer array": reflect.TypeOf([]int64{}),
-	"string array":  reflect.TypeOf([]string{}),
-	"float array":   reflect.TypeOf([]float64{}),
+// Wrapper for reflect.TypeOf/(old TypeMap)
+func getType(valueType string) reflect.Type {
+	return reflect.TypeOf(TypeNullMap[valueType])
 }
 
 // TODO: Implement a cache for inner calls to increase performance, use redis.
@@ -90,10 +83,10 @@ func ControlEvent(event *CreateEventRequest, previousEvent *models.Event) (*mode
 			valueType := reflect.TypeOf(propertyValue)
 
 			// If the given value's data type is valid
-			if TypeMap[property.ValueDataType].Name() == valueType.Name() {
+			if getType(property.ValueDataType).Name() == valueType.Name() {
 
 				// if the property is timelings
-				if valueType == TypeMap["timelings"] {
+				if valueType == getType("timelings") {
 
 					// Checking wheter the given timeling is valid or not
 					for _, timeling := range propertyValue.(map[string]int64) {
@@ -106,7 +99,7 @@ func ControlEvent(event *CreateEventRequest, previousEvent *models.Event) (*mode
 				continue
 
 			} else {
-				msg := fmt.Sprintf("PropertyID : %s, Given Property Value Type : %s Expected Property Value Type : %s ", propertyID, reflect.TypeOf(propertyValue), TypeMap[property.ValueDataType].Name())
+				msg := fmt.Sprintf("PropertyID : %s, Given Property Value Type : %s Expected Property Value Type : %s ", propertyID, reflect.TypeOf(propertyValue), getType(property.ValueDataType).Name())
 				return nil, errors.New(msg)
 
 				// return TypeErr

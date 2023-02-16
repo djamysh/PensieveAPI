@@ -13,3 +13,6 @@ SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
 // TODO: What happens if I update a property's ValueDataType or an activity's DefinedProperties ?
 // Consider this, this is a real issue.
  
+
+// Consider improving the postman test scripts, after the latest edition they became a bit messy.
+// Write test scripts for delete requests in order to update ID arrays accordingly in Postman env.

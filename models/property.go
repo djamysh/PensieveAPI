@@ -7,10 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var ValidDataTypes = [7]string{"string", "integer", "float", "timelings", "string array", "integer array", "float array"}
-
-// var DefaultTimelingsName = "Default Timelings"
-// var DefaultTimelingsPropertyID primitive.ObjectID
+var ValidDataTypes = [5]string{"string", "number", "timelings", "string array", "number array"}
 
 type Property struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -18,30 +15,6 @@ type Property struct {
 	Description   string             `bson:"description" json:"description"`
 	ValueDataType string             `bson:"valueDataType" json:"valueDataType"`
 }
-
-/*
-// Create a null Property so that at the delete moment deleted property reference will be set to null property
-func DefaultTimelingsProperty() (primitive.ObjectID, error) {
-	// Check wheter the default timelings Property is created or not, if not  creates.
-	var defaultTimelingsProperty *Property
-
-	if err := Client.Database(DBName).Collection("properties").FindOne(context.TODO(), bson.M{"name": DefaultTimelingsName}).Decode(&defaultTimelingsProperty); err != nil {
-
-		// definition of default timelings property
-		defaultTimelingsProperty = &Property{ID: primitive.NewObjectID(), Name: "Default Timelings", Description: "Default timelings property", ValueDataType: "timelings"}
-
-		// Creating a record for the default timelings property
-		if err = defaultTimelingsProperty.CreateProperty(); err != nil {
-
-			return primitive.NilObjectID, err
-		}
-
-		return defaultTimelingsProperty.ID, nil
-	}
-
-	return defaultTimelingsProperty.ID, nil
-}
-*/
 
 func (P *Property) IsValidType() bool {
 	// Check wheter the given data type is valid

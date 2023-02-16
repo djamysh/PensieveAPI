@@ -8,8 +8,7 @@ import (
 )
 
 type Activity struct {
-	ID primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	//ActivityID        int                  `bson:"activityID" json:"activityID"`
+	ID                primitive.ObjectID   `bson:"_id,omitempty" json:"id"`
 	Name              string               `bson:"name" json:"name" validate:"unique"`
 	Description       string               `bson:"description" json:"description"`
 	DefinedProperties []primitive.ObjectID `bson:"definedProperties" json:"definedProperties"`
@@ -19,9 +18,6 @@ func (activity *Activity) CreateActivity() error {
 
 	// Insert the activity into the MongoDB collection
 	activity.ID = primitive.NewObjectID()
-
-	// Appending the default Timelings property
-	// activity.DefinedProperties = append(activity.DefinedProperties, DefaultTimelingsPropertyID)
 
 	_, err := ActivitiesCollection.InsertOne(context.TODO(), activity)
 	return err
