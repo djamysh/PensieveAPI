@@ -19,11 +19,23 @@ type CreateEventRequest struct {
 	PropertyValues map[string]interface{} `json:"propertyValues"`
 }
 
+var TypeNullMap = map[string]interface{}{
+	"string":        "",
+	"integer":       int64(0),
+	"float":         float64(0),
+	"timelings":     map[string]int64{},
+	"integer array": []int64{},
+	"string array":  []string{},
+	"float array":   []float64{},
+}
+
+// TODO: Implement a cache for inner calls to increase performance, use redis.
+
 // TODO: Improve this function,
 // TODO: Find a better name for this function, it does not give accurate info
 // because ControlEvent function also processes the given data into to a
 // useable format, converts the PropertyValues into the []PropertyValue slice.
-func MockControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
+func MockControlEvent(event *CreateEventRequest, previousEvent *models.TestEvent) (*models.TestEvent, error) {
 	// default types : integer, float, string, timelings or array of those
 
 	// Convert the activityID string to an ObjectID
@@ -38,6 +50,8 @@ func MockControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
 		return nil, err
 	}
 
+	undefinedProperties := make(map[primitive.ObjectID]*models.Property)
+
 	// Checking data type consistency with given property values' data types
 	// TODO: make neater way of error response
 	for _, propertyID := range activity.DefinedProperties {
@@ -48,33 +62,43 @@ func MockControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
 		}
 
 		// Get the corresponding value
-		propertyValue := event.PropertyValues[propertyID.Hex()]
 
-		// Determine the data type
-		valueType := reflect.TypeOf(propertyValue)
+		propertyValue, isPresent := event.PropertyValues[propertyID.Hex()]
 
-		// If the given value's data type is valid
-		if models.TypeMap[property.ValueDataType].Name() == valueType.Name() {
-
-			// if the property is timelings
-			if valueType == models.TypeMap["timelings"] {
-
-				// Checking wheter the given timeling is valid or not
-				for _, timeling := range propertyValue.(map[string]int64) {
-					if time.Unix(timeling, 0).IsZero() {
-						return nil, models.TimestampErr // given timestamp is not valid
-					}
-				}
-			}
-
-			continue
+		// If the propertyValue is not given
+		if !isPresent {
+			undefinedProperties[propertyID] = property
 
 		} else {
-			msg := fmt.Sprintf("PropertyID : %s, Given Property Value Type : %s Expected Property Value Type : %s ", propertyID, reflect.TypeOf(propertyValue), models.TypeMap[property.ValueDataType].Name())
-			return nil, errors.New(msg)
 
-			// return TypeErr
+			// Determine the data type
+			valueType := reflect.TypeOf(propertyValue)
+
+			// If the given value's data type is valid
+			if models.TypeMap[property.ValueDataType].Name() == valueType.Name() {
+
+				// if the property is timelings
+				if valueType == models.TypeMap["timelings"] {
+
+					// Checking wheter the given timeling is valid or not
+					for _, timeling := range propertyValue.(map[string]int64) {
+						if time.Unix(timeling, 0).IsZero() {
+							return nil, models.TimestampErr // given timestamp is not valid
+						}
+					}
+				}
+
+				continue
+
+			} else {
+				msg := fmt.Sprintf("PropertyID : %s, Given Property Value Type : %s Expected Property Value Type : %s ", propertyID, reflect.TypeOf(propertyValue), models.TypeMap[property.ValueDataType].Name())
+				return nil, errors.New(msg)
+
+				// return TypeErr
+			}
+
 		}
+
 	}
 
 	// If the given property values are valid according to given Properties.
@@ -98,6 +122,72 @@ func MockControlEvent(event *CreateEventRequest) (*models.TestEvent, error) {
 		})
 	}
 
+	//TODO: Consider checking validity of the previousEvent parameter, in case not equal to nil.
+
+	// Append the undefined properties into the propertyValueSlice with accurate values
+	if previousEvent == nil {
+		// Create Event call
+		for propertyID, property := range undefinedProperties {
+
+			// Setting the null element
+			element := models.PropertyValue{
+				Key:   propertyID,
+				Value: TypeNullMap[property.ValueDataType],
+			}
+
+			// Appending to the propertyValuesSlice
+			propertyValuesSlice = append(propertyValuesSlice, element)
+
+		}
+	} else {
+		// Update Event call
+		for _, pair := range previousEvent.PropertyValues {
+
+			// Checking wheter the propertyID is defined in undefinedProps map
+			_, isExist := undefinedProperties[pair.Key]
+
+			// if it is append the pair to propertyValuesSlice
+			if isExist {
+				propertyValuesSlice = append(propertyValuesSlice, pair)
+			}
+		}
+
+	}
+
+	/*
+		// Append the undefined properties into the propertyValueSlice
+		for propertyID, property := range undefinedProperties {
+			// If this propertyValue is previously defined or
+			// in other words this is a update process
+			// Fetch the previous value of the property and
+			// set to undefined property value, else
+			// set null value accordingly.
+
+			if previousEvent == nil {
+				// Create Event call
+
+				// Setting the null value
+				// [!] I don't know maybe setting directly nil is a better option.
+				element := models.PropertyValue{
+					Key:   propertyID,
+					Value: TypeNullMap[property.ValueDataType],
+				}
+				propertyValuesSlice = append(propertyValuesSlice, element)
+
+			} else {
+				// Update Event call
+				// Finding the property and setting the value
+				for _, pair := range previousEvent.PropertyValues {
+					if pair.Key == propertyID {
+						propertyValuesSlice = append(propertyValuesSlice, pair)
+					}
+
+				}
+
+			}
+		}
+	*/
+
 	// Pass the processed data into the new model.
 	var checkedEvent models.TestEvent
 	checkedEvent.ActivityID = activityID
@@ -115,7 +205,7 @@ func MockCreateEventHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	event, err := MockControlEvent(&request)
+	event, err := MockControlEvent(&request, nil)
 	if err != nil {
 
 		// TODO: make better way of error handling
@@ -177,10 +267,24 @@ func MockUpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	var event *models.TestEvent
-	event, err = MockControlEvent(&updateEvent)
 
-	// currently it is going to set the given values without check.
+	var event, previousEvent *models.TestEvent
+
+	previousEvent, err = models.MockGetEvent(id)
+	if err != nil {
+		// If there is a problem with obtaining the previous
+		// Event value from the given EventID
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	event, err = MockControlEvent(&updateEvent, previousEvent)
+	if err != nil {
+		// If there is a problem with controlling the event
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	//TODO: Consider AppendUpdate for array data types,
+
 	update := bson.M{"$set": bson.M{"activityID": event.ActivityID, "propertyValues": event.PropertyValues}}
 
 	oldEvent, err := models.MockUpdateEvent(id, update)
