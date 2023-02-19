@@ -228,6 +228,33 @@ func GetEventsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(events)
 }
 
+func GetNullRequestPropertyValue(activityID string) (map[string]interface{}, error) {
+	// Returns the null/default valued propertyValues of the given ActivityID
+
+	//TODO-performance: This function is not good.
+
+	ActivityID, err := primitive.ObjectIDFromHex(activityID)
+	if err != nil {
+		return nil, err
+	}
+
+	activity, err := models.GetActivity(ActivityID)
+	if err != nil {
+		return nil, err
+	}
+
+	propertyValues := make(map[string]interface{})
+	for _, propertyID := range activity.DefinedProperties {
+
+		property, err := models.GetProperty(propertyID)
+		if err != nil {
+			return nil, err
+		}
+		propertyValues[propertyID.Hex()] = TypeNullMap[property.ValueDataType]
+	}
+	return propertyValues, nil
+}
+
 // UpdateEventHandler updates a specific event based on
 // the passed ID and returns the old event as a response
 func UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
@@ -253,6 +280,32 @@ func UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 		// Event value from the given EventID
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
+	}
+
+	if updateEvent.ActivityID == "" {
+		// If the activityID is not given in the request body set to the previous activityID
+		updateEvent.ActivityID = previousEvent.ActivityID.Hex()
+		// TODO-Performance: This will be converted back to ObjectID again in the ControlEvent
+		// find a better way of handling this case.
+		// Issue: ControlEvent also works for CreateEvent function
+	}
+
+	// What happens if request body does not contain property values
+	// -> set all the corresponding values to null value of the  according data type
+	if updateEvent.PropertyValues == nil {
+		// If the given activityID is the same with previous
+		if updateEvent.ActivityID == previousEvent.ActivityID.Hex() {
+			//TODO: Return a response that nothing updated
+			w.WriteHeader(http.StatusNoContent)
+			return
+		} else {
+			nullPropertyValues, err := GetNullRequestPropertyValue(updateEvent.ActivityID)
+			if err != nil {
+				// TODO: This error respons may be insufficient
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			}
+			updateEvent.PropertyValues = nullPropertyValues
+		}
 	}
 
 	event, err = ControlEvent(&updateEvent, previousEvent)

@@ -16,3 +16,7 @@ SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
 
 // Consider improving the postman test scripts, after the latest edition they became a bit messy.
 // Write test scripts for delete requests in order to update ID arrays accordingly in Postman env.
+
+
+// ! What happens if I update an event's activityID, at eventUpdate functions there is no additional
+// check for that.
