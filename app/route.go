@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/gorilla/mux"
 
-	"github.com/djamysh/TracerApp/services"
+	"github.com/djamysh/PensieveAPI/services"
 )
 
 func RegisterRoutes(r *mux.Router) {

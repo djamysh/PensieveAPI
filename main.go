@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/djamysh/TracerApp/app"
+	"github.com/djamysh/PensieveAPI/app"
 	"github.com/gorilla/mux"
 )
 

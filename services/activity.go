@@ -8,7 +8,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/djamysh/TracerApp/models"
+	"github.com/djamysh/PensieveAPI/models"
 )
 
 // route handler functions for the models.Activity model

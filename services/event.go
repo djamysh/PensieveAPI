@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/djamysh/TracerApp/models"
-	"github.com/djamysh/TracerApp/utils"
+	"github.com/djamysh/PensieveAPI/models"
+	"github.com/djamysh/PensieveAPI/utils"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
