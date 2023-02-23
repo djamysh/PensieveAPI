@@ -20,3 +20,9 @@ SOLVED: It is supposed to return STATUS NO CONTENT, I didn't know that.
 
 // ! What happens if I update an event's activityID, at eventUpdate functions there is no additional
 // check for that.
+
+// Name ve Description field'larında eğer ki bilgi verilmez ise sıfırlıyor. çöz bunu. -> use '$set' option with bson.
+// bu sorun activity için çözüldü, properties için de çözülmesi gerekiyor.
+
+// activity update test edilmesi gerekiyor -> test edildi doğru çalışıyor.
+

@@ -55,10 +55,37 @@ func GetEvents() ([]Event, error) {
 	return events, nil
 }
 
+func GetEventsByFilter(filter bson.M) ([]Event, error) {
+	// Define a slice of events to store the results
+	var events []Event
+
+	// Find the events that match the filter
+	cursor, err := EventsCollection.Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	// Iterate through the cursor and decode each event
+	for cursor.Next(context.Background()) {
+		var event Event
+		if err := cursor.Decode(&event); err != nil {
+			return nil, err
+		}
+		events = append(events, event)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	// Return the slice of events
+	return events, nil
+}
+
 // UpdateEvent updates a specific event in the database
 func UpdateEvent(id primitive.ObjectID, update bson.M) (*Event, error) {
 	var event Event
-	if err := EventsCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": id}, update).Decode(&event); err != nil {
+	if err := EventsCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": id}, bson.M{"$set": update}).Decode(&event); err != nil {
 		return nil, err
 	}
 	return &event, nil

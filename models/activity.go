@@ -25,12 +25,20 @@ func (activity *Activity) CreateActivity() error {
 }
 
 func (activity *Activity) UpdateActivity(id primitive.ObjectID) error {
+	// looks like it is going to be obsolote
 
 	// Update the activity in the MongoDB collection
 	activity.ID = id
 	_, err := ActivitiesCollection.ReplaceOne(context.TODO(), bson.M{"_id": id}, activity)
 
 	return err
+}
+func UpdateActivity(id primitive.ObjectID, update bson.M) (*Activity, error) {
+	var activity Activity
+	if err := ActivitiesCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": id}, bson.M{"$set": update}).Decode(&activity); err != nil {
+		return nil, err
+	}
+	return &activity, nil
 }
 
 func DeleteActivity(id primitive.ObjectID) error {

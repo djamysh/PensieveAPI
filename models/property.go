@@ -45,6 +45,15 @@ func (property *Property) UpdateProperty(id primitive.ObjectID) error {
 
 }
 
+func UpdateProperty(id primitive.ObjectID, update bson.M) (*Property, error) {
+	var property Property
+
+	if err := PropertiesCollection.FindOneAndUpdate(context.TODO(), bson.M{"_id": id}, bson.M{"$set": update}).Decode(&property); err != nil {
+		return nil, err
+	}
+	return &property, nil
+}
+
 func DeleteProperty(id primitive.ObjectID) error {
 
 	// Delete the property from the MongoDB collection

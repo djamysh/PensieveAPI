@@ -121,7 +121,7 @@ func ControlEvent(event *CreateEventRequest, previousEvent *models.Event) (*mode
 		propertyValues[id] = value
 	}
 
-	// Convert map[objectID]string to []PropertyValues
+	// Convert map[objectID]interface{} to []PropertyValues
 	propertyValuesSlice := make([]models.PropertyValue, 0, len(propertyValues))
 	for key, value := range propertyValues {
 		propertyValuesSlice = append(propertyValuesSlice, models.PropertyValue{
@@ -228,6 +228,46 @@ func GetEventsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(events)
 }
 
+func GetEventsByActivityID(w http.ResponseWriter, r *http.Request) {
+	// Get the activity ID from the URL
+	vars := mux.Vars(r)
+	activityID, err := primitive.ObjectIDFromHex(vars["activityID"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	events, err := models.GetEventsByFilter(bson.M{"activityID": activityID})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(events)
+}
+
+// TODO:Consider a better name
+func PropertyValueBackConvertion(propertyValues []models.PropertyValue) map[primitive.ObjectID]interface{} {
+	newPropertyValues := make(map[primitive.ObjectID]interface{})
+
+	for _, pair := range propertyValues {
+		newPropertyValues[pair.Key] = pair.Value
+	}
+	return newPropertyValues
+}
+
+// TODO:Apply this function to other handler functions
+func PropertyValueConvertion(propertyValues map[primitive.ObjectID]interface{}) []models.PropertyValue {
+	// Convert map[objectID]interface{} to []PropertyValues
+	propertyValuesSlice := make([]models.PropertyValue, 0, len(propertyValues))
+	for key, value := range propertyValues {
+		propertyValuesSlice = append(propertyValuesSlice, models.PropertyValue{
+			Key:   key,
+			Value: value,
+		})
+	}
+	return propertyValuesSlice
+}
+
 func GetNullRequestPropertyValue(activityID string) (map[string]interface{}, error) {
 	// Returns the null/default valued propertyValues of the given ActivityID
 
@@ -317,7 +357,7 @@ func UpdateEventHandler(w http.ResponseWriter, r *http.Request) {
 
 	//TODO: Consider AppendUpdate for array data types,
 
-	update := bson.M{"$set": bson.M{"activityID": event.ActivityID, "propertyValues": event.PropertyValues}}
+	update := bson.M{"activityID": event.ActivityID, "propertyValues": event.PropertyValues}
 
 	oldEvent, err := models.UpdateEvent(id, update)
 	if err != nil {

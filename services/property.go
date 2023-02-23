@@ -7,6 +7,7 @@ import (
 	"github.com/djamysh/TracerApp/models"
 	"github.com/djamysh/TracerApp/utils"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -72,23 +73,37 @@ func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	// Update the property in the MongoDB collection
 	property.ID = id
 
-	property.ValueDataType = utils.CleanInput(property.ValueDataType)
-	if !property.IsValidType() {
-		// If not a valid property value type
+	update := make(map[string]interface{})
 
-		// When the given input is invalid
-		http.Error(w, err.Error(), http.StatusNotAcceptable)
-		return
+	if property.Name != "" {
+		update["name"] = property.Name
+	}
+	if property.Description != "" {
+		update["description"] = property.Description
+	}
+	if property.ValueDataType != "" {
+		// Checking given Value data type
+		property.ValueDataType = utils.CleanInput(property.ValueDataType)
+		if !property.IsValidType() {
+			// If not a valid property value type
+			// When the given input is invalid
+			http.Error(w, err.Error(), http.StatusNotAcceptable)
+			return
+		}
+		update["valueDataType"] = property.ValueDataType
 	}
 
-	err = property.UpdateProperty(id)
+	bsonUpdate := bson.M(update)
+	oldValue, err := models.UpdateProperty(id, bsonUpdate)
+
+	//err = property.UpdateProperty(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Send a response indicating that the property was updated successfully
-	json.NewEncoder(w).Encode(property)
+	json.NewEncoder(w).Encode(oldValue)
 }
 
 func DeletePropertyHandler(w http.ResponseWriter, r *http.Request) {

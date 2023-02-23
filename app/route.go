@@ -25,6 +25,7 @@ func RegisterRoutes(r *mux.Router) {
 
 	r.HandleFunc("/events", services.CreateEventHandler).Methods("POST")
 	r.HandleFunc("/events/{id}", services.GetEventHandler).Methods("GET")
+	r.HandleFunc("/events/by/{activityID}", services.GetEventsByActivityID).Methods("GET")
 	r.HandleFunc("/events", services.GetEventsHandler).Methods("GET")
 	r.HandleFunc("/events/{id}", services.DeleteEventHandler).Methods("DELETE")
 	r.HandleFunc("/events/{id}", services.UpdateEventHandler).Methods("PUT")
