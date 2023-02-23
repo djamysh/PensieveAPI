@@ -65,6 +65,56 @@ func diffDefinedProperties(oldDefinedProperties, newDefinedProperties []primitiv
 	return changeMap
 }
 
+func UpdateActivityEventRelations(activityID primitive.ObjectID, newDefinedProperties []primitive.ObjectID) error {
+
+	previousActivity, err := models.GetActivity(activityID)
+	if err != nil {
+		return err
+	}
+
+	// Finds the changed properties
+	changedProperties := diffDefinedProperties(previousActivity.DefinedProperties, newDefinedProperties)
+
+	// Gets the events that are related to updated activity
+	relatedEvents, err := models.GetEventsByFilter(bson.M{"activityID": activityID})
+	if err != nil {
+		return err
+	}
+
+	for _, relatedEvent := range relatedEvents {
+
+		// For easier implementation converting back to map[objectID]interface{}
+		propertyValues := PropertyValueBackConvertion(relatedEvent.PropertyValues)
+		for propertyID, state := range changedProperties {
+			if state {
+				// added property
+				// Get new property
+				property, err := models.GetProperty(propertyID)
+				if err != nil {
+					return err
+				}
+				// Setting the null/default value
+				propertyValues[propertyID] = TypeNullMap[property.ValueDataType]
+
+			} else {
+				// removed property
+				// deleting the property value from propertyValues map
+				delete(propertyValues, propertyID)
+			}
+
+		}
+		// Converting back to DB submitable format
+		propertyValuesSlice := PropertyValueConvertion(propertyValues)
+		// Updating the new propertyValues
+		_, err := models.UpdateEvent(relatedEvent.ID, bson.M{"propertyValues": propertyValuesSlice})
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
 func UpdateActivityHandler(w http.ResponseWriter, r *http.Request) {
 	// Get the activity ID from the URL
 	vars := mux.Vars(r)
@@ -113,55 +163,9 @@ func UpdateActivityHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if updateRelationsFlag {
-
-		previousActivity, err := models.GetActivity(id)
-		if err != nil {
-			// TODO-errHandling
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		// Finds the changed properties
-		changedProperties := diffDefinedProperties(previousActivity.DefinedProperties, activity.DefinedProperties)
-
-		// Gets the events that are related to updated activity
-		relatedEvents, err := models.GetEventsByFilter(bson.M{"activityID": id})
-		if err != nil {
+		if err := UpdateActivityEventRelations(id, activity.DefinedProperties); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-
-		for _, relatedEvent := range relatedEvents {
-
-			// For easier implementation converting back to map[objectID]interface{}
-			propertyValues := PropertyValueBackConvertion(relatedEvent.PropertyValues)
-			for propertyID, state := range changedProperties {
-				if state {
-					// added property
-					// Get new property
-					property, err := models.GetProperty(propertyID)
-					if err != nil {
-						http.Error(w, err.Error(), http.StatusBadRequest)
-						return
-					}
-					// Setting the null/default value
-					propertyValues[propertyID] = TypeNullMap[property.ValueDataType]
-
-				} else {
-					// removed property
-					// deleting the property value from propertyValues map
-					delete(propertyValues, propertyID)
-				}
-
-			}
-			// Converting back to DB submitable format
-			propertyValuesSlice := PropertyValueConvertion(propertyValues)
-			// Updating the new propertyValues
-			_, err := models.UpdateEvent(relatedEvent.ID, bson.M{"propertyValues": propertyValuesSlice})
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-
+			return
 		}
 	}
 
@@ -170,6 +174,10 @@ func UpdateActivityHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func DeleteActivityHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: condsider adding/handling options, because currently
+	// as default delete handler deletes the activity and all related events.
+	// I think we can add some optionality for this.
+
 	// Get the activity ID from the URL
 	vars := mux.Vars(r)
 	id, err := primitive.ObjectIDFromHex(vars["id"])
@@ -180,10 +188,20 @@ func DeleteActivityHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Delete the activity from the MongoDB collection
 	err = models.DeleteActivity(id)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Gets the events that are related to deleted activity
+	relatedEvents, err := models.GetEventsByFilter(bson.M{"activityID": id})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	// Deletes the all related events
+	for _, relatedEvent := range relatedEvents {
+		models.DeleteEvent(relatedEvent.ID)
 	}
 
 	// Send a response indicating that the activity was deleted successfully

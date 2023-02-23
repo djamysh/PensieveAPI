@@ -77,3 +77,30 @@ func GetActivities() ([]*Activity, error) {
 	}
 	return activities, nil
 }
+
+func GetActivitiesByFilter(filter bson.M) ([]Activity, error) {
+	// Define a slice of activitys to store the results
+	var activities []Activity
+
+	// Find the activities that match the filter
+	cursor, err := ActivitiesCollection.Find(context.TODO(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.TODO())
+
+	// Iterate through the cursor and decode each activity
+	for cursor.Next(context.Background()) {
+		var activity Activity
+		if err := cursor.Decode(&activity); err != nil {
+			return nil, err
+		}
+		activities = append(activities, activity)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	// Return the slice of activities
+	return activities, nil
+}

@@ -46,6 +46,59 @@ func CreatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(property)
 }
 
+func UpdatePropertysRelations(propertyID primitive.ObjectID, newValueDataType string) error {
+	filter := bson.M{
+		"definedProperties": bson.M{
+			"$elemMatch": bson.M{
+				"$eq": propertyID,
+			},
+		},
+	}
+
+	// Get the related activities
+	relatedActivities, err := models.GetActivitiesByFilter(filter)
+	if err != nil {
+		return err
+	}
+
+	for _, relatedActivity := range relatedActivities {
+		// Gets the events that are related to related activity
+		relatedEvents, err := models.GetEventsByFilter(bson.M{"activityID": relatedActivity.ID})
+		if err != nil {
+			return err
+		}
+
+		for _, relatedEvent := range relatedEvents {
+			updatePropertyValueIndex := -1
+
+			// finding the index of the pair that has the updated property in it's Key value
+			for idx, pair := range relatedEvent.PropertyValues {
+				if pair.Key == propertyID {
+					updatePropertyValueIndex = idx
+					break
+				}
+			}
+
+			if updatePropertyValueIndex == -1 {
+				// Something is definitely wrong. Because filter must bring the related Events
+				// that contain property in their propertyValues
+				panic("Error with obtaining the related events properly.")
+			}
+
+			// Set the changed property value to null value of the new value data type
+			relatedEvent.PropertyValues[updatePropertyValueIndex].Value = TypeNullMap[newValueDataType]
+
+			// Update the property values of the corresponding related event
+			_, err := models.UpdateEvent(relatedEvent.ID, bson.M{"propertyValues": relatedEvent.PropertyValues})
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
+}
+
 func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	// ?? Is it possible to change ID with the request
 	// ?> No, because there is a redefinition of property.ID in the
@@ -75,6 +128,8 @@ func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 
 	update := make(map[string]interface{})
 
+	updateRelationsFlag := false
+
 	if property.Name != "" {
 		update["name"] = property.Name
 	}
@@ -91,15 +146,34 @@ func UpdatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		update["valueDataType"] = property.ValueDataType
+		updateRelationsFlag = true
 	}
 
 	bsonUpdate := bson.M(update)
 	oldValue, err := models.UpdateProperty(id, bsonUpdate)
 
+	if oldValue.ValueDataType == update["valueDataType"] {
+		// If the new given value data type is the same with previous
+		// don't need to update relations flag, it is just
+		// overwritting the same value to valueDataType it may
+		// lead to incorrect nullification of related event's
+		// propertyValues, this is important.
+
+		updateRelationsFlag = false
+	}
+
 	//err = property.UpdateProperty(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if updateRelationsFlag {
+		if err := UpdatePropertysRelations(id, update["valueDataType"].(string)); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 	}
 
 	// Send a response indicating that the property was updated successfully
