@@ -10,7 +10,7 @@ import (
 )
 
 var Client *mongo.Client
-var DBName = "TracerApp"
+var DBName = "PensieveAPI"
 var ActivitiesCollectionName = "activities"
 var ActivitiesCollection *mongo.Collection
 var EventsCollectionName = "events"

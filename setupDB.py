@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 
 MONGO_URI = "mongodb://localhost:27017/"
-DB_NAME = "TracerApp"
+DB_NAME = "PensieveAPI"
 COLLECTIONS = ["events", "activities", "properties"]
 
 client = MongoClient(MONGO_URI)
