@@ -46,7 +46,7 @@ func CreatePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(property)
 }
 
-func UpdatePropertysRelations(propertyID primitive.ObjectID, newValueDataType string) error {
+func GetPropertysRelatedActivities(propertyID primitive.ObjectID) ([]models.Activity, error) {
 	filter := bson.M{
 		"definedProperties": bson.M{
 			"$elemMatch": bson.M{
@@ -54,9 +54,92 @@ func UpdatePropertysRelations(propertyID primitive.ObjectID, newValueDataType st
 			},
 		},
 	}
-
 	// Get the related activities
 	relatedActivities, err := models.GetActivitiesByFilter(filter)
+	return relatedActivities, err
+
+}
+
+func DeletePropertysRelations(propertyID primitive.ObjectID) error {
+	// Get related activites
+	relatedActivities, err := GetPropertysRelatedActivities(propertyID)
+	if err != nil {
+		return err
+
+	}
+
+	for _, relatedActivity := range relatedActivities {
+		// Gets the events that are related to related activity
+		relatedEvents, err := models.GetEventsByFilter(bson.M{"activityID": relatedActivity.ID})
+		if err != nil {
+			return err
+		}
+
+		for _, relatedEvent := range relatedEvents {
+			deletePropertyValueIndex := -1
+
+			// finding the index of the pair that has the updated property in it's Key value
+			for idx, pair := range relatedEvent.PropertyValues {
+				if pair.Key == propertyID {
+					deletePropertyValueIndex = idx
+					break
+				}
+			}
+
+			if deletePropertyValueIndex == -1 {
+				// Something is definitely wrong. Because filter must bring the related Events
+				// that contain property in their propertyValues
+				panic("Error with obtaining the related events properly.")
+			}
+
+			// removing the corresponding property value pair
+			relatedEvent.PropertyValues = append(relatedEvent.PropertyValues[:deletePropertyValueIndex], relatedEvent.PropertyValues[deletePropertyValueIndex+1:]...)
+
+			// Update the property values of the corresponding related event
+			_, err := models.UpdateEvent(relatedEvent.ID, bson.M{"propertyValues": relatedEvent.PropertyValues})
+			if err != nil {
+				return err
+			}
+
+		}
+
+		deletePropertyIDIndex := -1
+
+		// finding the index of the propertyID that has the deleted property.
+		for idx, value := range relatedActivity.DefinedProperties {
+			if value == propertyID {
+				deletePropertyIDIndex = idx
+				break
+			}
+		}
+
+		if deletePropertyIDIndex == -1 {
+			// Something is definitely wrong. Because filter must bring the related Activities
+			// that contain property in their propertyValues
+			panic("Error with obtaining the related activity properly.")
+		}
+
+		// deleting the deleted propertyID
+		relatedActivity.DefinedProperties = append(relatedActivity.DefinedProperties[:deletePropertyIDIndex], relatedActivity.DefinedProperties[deletePropertyIDIndex+1:]...)
+
+		// update activity
+		_, err = models.UpdateActivity(relatedActivity.ID, bson.M{"definedProperties": relatedActivity.DefinedProperties})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
+func UpdatePropertysRelations(propertyID primitive.ObjectID, newValueDataType string) error {
+	// find the related activites
+	// find the related events that are related to related activitiesa
+	// delete the property value pairs from the related events' propertyValues that has the deleted property as their Key value
+	// delete the property from the related activities defined properties
+
+	// Get the related activities
+	relatedActivities, err := GetPropertysRelatedActivities(propertyID)
 	if err != nil {
 		return err
 	}
@@ -190,6 +273,12 @@ func DeletePropertyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = models.DeleteProperty(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = DeletePropertysRelations(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
